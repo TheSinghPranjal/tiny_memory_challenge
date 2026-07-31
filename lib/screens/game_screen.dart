@@ -1,0 +1,312 @@
+import 'package:confetti/confetti.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:memory_challenge/controllers/game_controller.dart';
+import 'package:memory_challenge/core/extensions/extensions.dart';
+import 'package:memory_challenge/core/theme/app_theme.dart';
+import 'package:memory_challenge/models/game_state.dart';
+import 'package:memory_challenge/widgets/common/common_widgets.dart';
+import 'package:memory_challenge/widgets/game/game_hud.dart';
+import 'package:memory_challenge/widgets/game/memory_board.dart';
+import 'package:memory_challenge/widgets/game/popups.dart';
+
+class GameScreen extends ConsumerStatefulWidget {
+  const GameScreen({super.key});
+
+  @override
+  ConsumerState<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends ConsumerState<GameScreen>
+    with WidgetsBindingObserver {
+  late final ConfettiController _confetti;
+  bool _started = false;
+  GamePhase? _lastPhase;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _confetti = ConfettiController(duration: const Duration(seconds: 2));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_started) {
+        _started = true;
+        ref.read(gameControllerProvider.notifier).startGame();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _confetti.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = ref.read(gameControllerProvider.notifier);
+    final game = ref.read(gameControllerProvider);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      if (game.isGameActive && !game.isPaused) {
+        // Phone call / brief inactive → pause.
+        if (state == AppLifecycleState.inactive) {
+          controller.pause();
+        }
+      }
+    }
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      // Background / kill path: end run and save completed progress.
+      controller.abandonAndSave();
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    }
+  }
+
+  Future<void> _goHome() async {
+    await ref.read(gameControllerProvider.notifier).abandonAndSave();
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  void _handlePhaseSideEffects(GameState game) {
+    if (_lastPhase == game.phase) return;
+    _lastPhase = game.phase;
+    if (game.phase == GamePhase.levelComplete ||
+        game.phase == GamePhase.victory) {
+      _confetti.play();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final game = ref.watch(gameControllerProvider);
+    _handlePhaseSideEffects(game);
+
+    final showOverlay = game.phase == GamePhase.levelIntroReady ||
+        game.phase == GamePhase.levelIntroSet ||
+        game.phase == GamePhase.levelIntroObserve ||
+        game.phase == GamePhase.go;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _goHome();
+      },
+      child: Scaffold(
+        body: GradientBackground(
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
+                      child: SizedBox(
+                        height: StageTimerRing.size,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            LivesRow(lives: game.lives),
+                            const Spacer(),
+                            SoftCard(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              child: Text(
+                                'Lv ${game.level} · St ${game.stage}',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                            const Spacer(),
+                            // Always reserve the same slot so the board never jumps.
+                            SizedBox(
+                              width: StageTimerRing.size,
+                              height: StageTimerRing.size,
+                              child: game.phase == GamePhase.input
+                                  ? StageTimerRing(
+                                      remainingMs: game.remainingMs,
+                                      totalMs: game.timerTotalMs,
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            SizedBox(
+                              width: 48,
+                              height: StageTimerRing.size,
+                              child: IconButton(
+                                tooltip: 'Pause',
+                                padding: EdgeInsets.zero,
+                                onPressed: game.isGameActive &&
+                                        !game.isPaused &&
+                                        game.phase != GamePhase.wrongPopup &&
+                                        game.phase !=
+                                            GamePhase.timerExpiredPopup &&
+                                        game.phase != GamePhase.levelComplete &&
+                                        game.phase != GamePhase.gameOver &&
+                                        game.phase != GamePhase.victory
+                                    ? () => ref
+                                        .read(gameControllerProvider.notifier)
+                                        .pause()
+                                    : null,
+                                icon: const Icon(
+                                  Icons.pause_circle_filled_rounded,
+                                  color: AppColors.textOnDark,
+                                  size: 36,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Center(
+                          child: MemoryBoard(
+                            level: game.level.clamp(1, 9),
+                            tileStates: game.tileStates,
+                            inputEnabled: game.isAcceptingInput,
+                            onTileTap: (i) => ref
+                                .read(gameControllerProvider.notifier)
+                                .onTileTapped(i),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (showOverlay) PhaseOverlay(phase: game.phase),
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConfettiWidget(
+                    confettiController: _confetti,
+                    blastDirectionality: BlastDirectionality.explosive,
+                    shouldLoop: false,
+                    colors: const [
+                      AppColors.primary,
+                      AppColors.secondary,
+                      AppColors.accent,
+                      AppColors.gold,
+                      AppColors.success,
+                    ],
+                  ),
+                ),
+                if (game.phase == GamePhase.paused)
+                  PauseDialog(
+                    onResume: () =>
+                        ref.read(gameControllerProvider.notifier).resume(),
+                    onRestartStage: () => ref
+                        .read(gameControllerProvider.notifier)
+                        .restartStage(),
+                    onHome: _goHome,
+                  ),
+                if (game.phase == GamePhase.wrongPopup ||
+                    game.phase == GamePhase.timerExpiredPopup ||
+                    game.phase == GamePhase.gameOver)
+                  WrongSequencePopup(
+                    level: game.level,
+                    sequence: game.lastFailedSequence,
+                    livesRemaining: game.lives,
+                    isTimeout: game.failureReason == 'timeout',
+                    onContinue: () => ref
+                        .read(gameControllerProvider.notifier)
+                        .continueAfterFailure(),
+                    onRestart: () => ref
+                        .read(gameControllerProvider.notifier)
+                        .restartGame(),
+                    onHome: _goHome,
+                  ),
+                if (game.phase == GamePhase.levelComplete)
+                  LevelCompletePopup(
+                    level: game.level,
+                    onContinue: () => ref
+                        .read(gameControllerProvider.notifier)
+                        .continueAfterLevelComplete(),
+                  ),
+                if (game.phase == GamePhase.victory) _VictoryOverlay(game: game),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VictoryOverlay extends ConsumerWidget {
+  const _VictoryOverlay({required this.game});
+
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final elapsed = Duration(milliseconds: game.runElapsedMs);
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SoftCard(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 64)),
+              const SizedBox(height: 8),
+              Text(
+                'Congratulations!',
+                style: Theme.of(context).textTheme.headlineMedium,
+                textAlign: TextAlign.center,
+              ),
+              Text(
+                'Memory Master',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.primary,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              _stat(context, 'Total mistakes', '${game.mistakesThisRun}'),
+              _stat(context, 'Total time', elapsed.mmss),
+              _stat(context, 'Best streak', '${game.bestStreakThisRun}'),
+              const SizedBox(height: 20),
+              PrimaryGameButton(
+                label: 'Restart',
+                icon: Icons.refresh_rounded,
+                width: double.infinity,
+                onPressed: () =>
+                    ref.read(gameControllerProvider.notifier).restartGame(),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await ref
+                      .read(gameControllerProvider.notifier)
+                      .abandonAndSave();
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+                child: Text(
+                  'Home',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.primary,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyLarge)),
+          Text(value, style: Theme.of(context).textTheme.titleLarge),
+        ],
+      ),
+    );
+  }
+}
