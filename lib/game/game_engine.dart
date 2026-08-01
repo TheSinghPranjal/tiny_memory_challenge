@@ -181,15 +181,19 @@ class GameEngine {
   void continueAfterFailure() {
     if (_disposed) return;
     if (_state.lives <= 0) return;
+    _cancelPhaseTimer();
+    _timer.cancel();
+    _tapLocked = false;
     _emit(_state.copyWith(
-      phase: GamePhase.blinking,
       playerIndex: 0,
       clearBlinkingTile: true,
       tileStates: const {},
+      sequence: const [],
       clearFailureReason: true,
       lastFailedSequence: const [],
     ));
-    _startStageBlink(showLevelIntro: false);
+    // Give the player Ready → Set → Observe before the next blink sequence.
+    _beginOverlay(GamePhase.levelIntroReady, AppConstants.readyDuration);
   }
 
   void continueAfterLevelComplete() {
