@@ -95,23 +95,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               child: child,
                             );
                           },
-                          child: Column(
-                            children: [
-                              Text(
-                                AppConstants.appName,
-                                style: Theme.of(context).textTheme.displayLarge,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                AppConstants.appSubtitle,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(color: AppColors.textOnDark),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                          child: Image.asset(
+                            'assets/images/panda_logo.webp',
+                            height: 180,
+                            fit: BoxFit.contain,
+                            semanticLabel: AppConstants.appName,
                           ),
                         ),
                         const SizedBox(height: 28),
