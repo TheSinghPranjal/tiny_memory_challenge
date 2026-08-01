@@ -56,6 +56,8 @@ class PrimaryGameButton extends StatefulWidget {
     this.icon,
     this.color,
     this.width,
+    this.glowing = false,
+    this.glowColor,
   });
 
   final String label;
@@ -64,15 +66,123 @@ class PrimaryGameButton extends StatefulWidget {
   final Color? color;
   final double? width;
 
+  /// When true, renders an animated pulsing neon-glow ring around the
+  /// button (used for the "Start Game" primary CTA on the home screen).
+  final bool glowing;
+
+  /// Color of the neon ring. Defaults to [AppColors.secondary] when
+  /// [glowing] is true and no override is given.
+  final Color? glowColor;
+
   @override
   State<PrimaryGameButton> createState() => _PrimaryGameButtonState();
 }
 
-class _PrimaryGameButtonState extends State<PrimaryGameButton> {
+class _PrimaryGameButtonState extends State<PrimaryGameButton>
+    with SingleTickerProviderStateMixin {
   bool _pressed = false;
+  AnimationController? _glowController;
+  Animation<double>? _glow;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.glowing) {
+      _glowController = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1400),
+      )..repeat(reverse: true);
+      _glow = Tween<double>(begin: 0.5, end: 1.0).animate(
+        CurvedAnimation(parent: _glowController!, curve: Curves.easeInOut),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _glowController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final glowColor = widget.glowColor ?? AppColors.secondary;
+
+    final button = Container(
+      width: widget.width,
+      constraints: const BoxConstraints(minHeight: 56, minWidth: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: widget.color == null ? AppColors.buttonGradient : null,
+        color: widget.color,
+        borderRadius: BorderRadius.circular(22),
+        border: widget.glowing
+            ? Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1.4,
+        )
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: (widget.color ?? AppColors.primary).withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (widget.icon != null) ...[
+            Icon(widget.icon, color: AppColors.textOnDark, size: 22),
+            const SizedBox(width: 10),
+          ],
+          Text(
+            widget.label,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ],
+      ),
+    );
+
+    final scaled = AnimatedScale(
+      scale: _pressed ? 0.96 : 1,
+      duration: const Duration(milliseconds: 100),
+      child: button,
+    );
+
+    final content = widget.glowing
+        ? AnimatedBuilder(
+      animation: _glow!,
+      builder: (context, child) {
+        final t = _glow!.value;
+        return Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: [
+              // Wide soft outer halo — breathes in and out.
+              BoxShadow(
+                color: glowColor.withValues(alpha: 0.55 * t),
+                blurRadius: 28 * t,
+                spreadRadius: 4 * t,
+              ),
+              // Tight bright rim right at the edge of the pill.
+              BoxShadow(
+                color: glowColor.withValues(alpha: 0.9),
+                blurRadius: 6,
+                spreadRadius: 0.5,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: scaled,
+    )
+        : scaled;
+
     return Semantics(
       button: true,
       label: widget.label,
@@ -85,42 +195,7 @@ class _PrimaryGameButtonState extends State<PrimaryGameButton> {
             : (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
         onTap: widget.onPressed,
-        child: AnimatedScale(
-          scale: _pressed ? 0.96 : 1,
-          duration: const Duration(milliseconds: 100),
-          child: Container(
-            width: widget.width,
-            constraints: const BoxConstraints(minHeight: 56, minWidth: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-            decoration: BoxDecoration(
-              gradient: widget.color == null ? AppColors.buttonGradient : null,
-              color: widget.color,
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: (widget.color ?? AppColors.primary)
-                      .withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (widget.icon != null) ...[
-                  Icon(widget.icon, color: AppColors.textOnDark, size: 22),
-                  const SizedBox(width: 10),
-                ],
-                Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: content,
       ),
     );
   }
@@ -148,8 +223,8 @@ class SecondaryGameButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           minimumSize: const Size(48, 48),
           textStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: AppColors.textOnDark,
-              ),
+            color: AppColors.textOnDark,
+          ),
         ),
         child: Text(label),
       ),

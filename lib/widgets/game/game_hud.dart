@@ -57,16 +57,16 @@ class PhaseOverlay extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                  color: _color,
-                  fontSize: 56,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+              color: _color,
+              fontSize: 56,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
+              ],
+            ),
           ),
         ),
       ),
@@ -105,55 +105,122 @@ class LivesRow extends StatelessWidget {
   }
 }
 
-class StageTimerRing extends StatelessWidget {
+class StageTimerRing extends StatefulWidget {
   const StageTimerRing({
     super.key,
     required this.remainingMs,
     required this.totalMs,
   });
 
-  static const double size = 52;
+  /// Overall footprint of the badge, including its glow clearance.
+  static const double size = 72;
 
   final int remainingMs;
   final int totalMs;
 
   @override
+  State<StageTimerRing> createState() => _StageTimerRingState();
+}
+
+class _StageTimerRingState extends State<StageTimerRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _glowController;
+  late final Animation<double> _glow;
+
+  @override
+  void initState() {
+    super.initState();
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _glow = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final progress =
-        totalMs <= 0 ? 0.0 : (remainingMs / totalMs).clamp(0.0, 1.0);
-    final seconds = (remainingMs / 1000).ceil().clamp(0, 999);
+    final progress = widget.totalMs <= 0
+        ? 0.0
+        : (widget.remainingMs / widget.totalMs).clamp(0.0, 1.0);
+    final seconds = (widget.remainingMs / 1000).ceil().clamp(0, 999);
     final urgent = progress < 0.25;
+    final glowColor = urgent ? AppColors.danger : AppColors.secondary;
+    const size = StageTimerRing.size;
+    const ringSize = size - 12;
 
     return Semantics(
       label: '$seconds seconds remaining',
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: size,
-              height: size,
-              child: CircularProgressIndicator(
+      child: AnimatedBuilder(
+        animation: _glow,
+        builder: (context, child) {
+          final t = _glow.value;
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.primary,
+                  AppColors.secondary.withValues(alpha: 0.85),
+                ],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.9),
+                width: 2.5,
+              ),
+              boxShadow: [
+                // Soft breathing halo — the "neon" part.
+                BoxShadow(
+                  color: glowColor.withValues(alpha: 0.55 * t),
+                  blurRadius: 24 * t,
+                  spreadRadius: 4 * t,
+                ),
+                // Tight bright rim right at the badge edge.
+                BoxShadow(
+                  color: glowColor.withValues(alpha: 0.9),
+                  blurRadius: 6,
+                  spreadRadius: 0.5,
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: child,
+          );
+        },
+        child: SizedBox(
+          width: ringSize,
+          height: ringSize,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
                 value: progress,
                 strokeWidth: 5,
-                backgroundColor: Colors.white24,
+                backgroundColor: Colors.white.withValues(alpha: 0.28),
                 valueColor: AlwaysStoppedAnimation(
-                  urgent ? AppColors.danger : AppColors.secondary,
+                  urgent ? AppColors.danger : Colors.white,
                 ),
               ),
-            ),
-            Text(
-              '$seconds',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textOnDark,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18,
-                    height: 1,
-                  ),
-            ),
-          ],
+              Text(
+                '$seconds',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.textOnDark,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 24,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -202,11 +269,11 @@ class PauseDialog extends StatelessWidget {
   }
 
   Widget _btn(
-    BuildContext context,
-    String label,
-    VoidCallback onTap,
-    Color color,
-  ) {
+      BuildContext context,
+      String label,
+      VoidCallback onTap,
+      Color color,
+      ) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(

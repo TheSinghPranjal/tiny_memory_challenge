@@ -84,7 +84,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           alignment: Alignment.centerRight,
                           child: ProfileAvatar(profile: profile, size: 52),
                         ),
-                        const Spacer(flex: 2),
+                        const Spacer(flex: 3),
+                        // Logo — enlarged to match the reference design.
                         AnimatedBuilder(
                           animation: _logoController,
                           builder: (context, child) {
@@ -97,12 +98,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           },
                           child: Image.asset(
                             'assets/images/panda_logo.webp',
-                            height: 180,
+                            height: 260,
                             fit: BoxFit.contain,
                             semanticLabel: AppConstants.appName,
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         SoftCard(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -134,11 +135,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ],
                           ),
                         ),
-                        const Spacer(),
+                        const Spacer(flex: 2),
+                        // Primary CTA — neon glow ring around the button.
                         PrimaryGameButton(
                           label: 'Start Game',
                           icon: Icons.play_arrow_rounded,
                           width: double.infinity,
+                          glowing: true,
                           onPressed: () async {
                             await ref
                                 .read(audioServiceProvider)
