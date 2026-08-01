@@ -26,26 +26,6 @@ class GameController extends StateNotifier<GameState> {
 
   void startGame() {
     final settings = _ref.read(settingsControllerProvider);
-    final stats = _ref.read(activeProfileStatsProvider);
-
-    var level = 1;
-    var stage = 1;
-
-    if (stats.maxStage > 0) {
-      final stageCount = LevelConfig.stageCountFor(stats.maxLevel);
-      if (stats.maxStage >= stageCount) {
-        if (stats.maxLevel < AppConstants.maxLevel) {
-          level = stats.maxLevel + 1;
-          stage = 1;
-        } else {
-          level = 1;
-          stage = 1;
-        }
-      } else {
-        level = stats.maxLevel;
-        stage = stats.maxStage + 1;
-      }
-    }
 
     _runCounted = false;
     _runMistakes = 0;
@@ -54,9 +34,10 @@ class GameController extends StateNotifier<GameState> {
     _runResponseSamples = 0;
     _lastInputAt = null;
 
+    // Always a fresh run from Level 1 Stage 1 (not a continue/resume).
     _engine.startNewGame(
-      startLevel: level,
-      startStage: stage,
+      startLevel: 1,
+      startStage: 1,
       timerSeconds: settings.timerDurationSeconds,
     );
     _bumpGamesPlayed();

@@ -58,6 +58,7 @@ class PrimaryGameButton extends StatefulWidget {
     this.width,
     this.glowing = false,
     this.glowColor,
+    this.depth3D = false,
   });
 
   final String label;
@@ -73,6 +74,12 @@ class PrimaryGameButton extends StatefulWidget {
   /// Color of the neon ring. Defaults to [AppColors.secondary] when
   /// [glowing] is true and no override is given.
   final Color? glowColor;
+
+  /// When true, adds a solid darker "base" layer offset below the pill,
+  /// giving a chunky 3D/beveled look (used for popup CTAs like Continue).
+  /// Works best with an explicit [width] (e.g. double.infinity) since the
+  /// base layer mirrors the pill's own width/constraints exactly.
+  final bool depth3D;
 
   @override
   State<PrimaryGameButton> createState() => _PrimaryGameButtonState();
@@ -183,6 +190,33 @@ class _PrimaryGameButtonState extends State<PrimaryGameButton>
     )
         : scaled;
 
+    final depthWrapped = widget.depth3D
+        ? Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Solid darker "base" layer, offset down — reads as a
+        // chunky 3D bevel rather than a soft blurred shadow.
+        Transform.translate(
+          offset: const Offset(0, 6),
+          child: Container(
+            width: widget.width,
+            constraints:
+            const BoxConstraints(minHeight: 56, minWidth: 160),
+            decoration: BoxDecoration(
+              color: Color.lerp(
+                widget.color ?? AppColors.primary,
+                Colors.black,
+                0.35,
+              ),
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
+        ),
+        content,
+      ],
+    )
+        : content;
+
     return Semantics(
       button: true,
       label: widget.label,
@@ -195,7 +229,7 @@ class _PrimaryGameButtonState extends State<PrimaryGameButton>
             : (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
         onTap: widget.onPressed,
-        child: content,
+        child: depthWrapped,
       ),
     );
   }
