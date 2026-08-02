@@ -1,6 +1,7 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:memory_challenge/controllers/app_controllers.dart';
 import 'package:memory_challenge/controllers/game_controller.dart';
 import 'package:memory_challenge/core/extensions/extensions.dart';
 import 'package:memory_challenge/core/theme/app_theme.dart';
@@ -32,6 +33,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_started) {
         _started = true;
+        ref.read(audioServiceProvider).stopMusic();
         ref.read(gameControllerProvider.notifier).startGame();
       }
     });
@@ -48,26 +50,49 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final controller = ref.read(gameControllerProvider.notifier);
     final game = ref.read(gameControllerProvider);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+    final audio = ref.read(audioServiceProvider);
+
+    if (state == AppLifecycleState.inactive) {
       if (game.isGameActive && !game.isPaused) {
-        // Phone call / brief inactive → pause.
-        if (state == AppLifecycleState.inactive) {
-          controller.pause();
-        }
+        controller.pause();
       }
     }
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      audio.stopMusic();
+    }
+
     if (state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      // Background / kill path: end run and save completed progress.
       controller.abandonAndSave();
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        (ModalRoute.of(context)?.isCurrent ?? false) &&
+        ref.read(gameControllerProvider).isPaused) {
+      audio.startMusic();
     }
   }
 
   Future<void> _goHome() async {
+    await ref.read(audioServiceProvider).stopMusic();
     await ref.read(gameControllerProvider.notifier).abandonAndSave();
     if (mounted) Navigator.of(context).pop();
+  }
+
+  void _pauseGame() {
+    ref.read(gameControllerProvider.notifier).pause();
+    ref.read(audioServiceProvider).startMusic();
+  }
+
+  void _resumeGame() {
+    ref.read(audioServiceProvider).stopMusic();
+    ref.read(gameControllerProvider.notifier).resume();
   }
 
   void _handlePhaseSideEffects(GameState game) {
@@ -158,9 +183,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         game.phase != GamePhase.levelComplete &&
                                         game.phase != GamePhase.gameOver &&
                                         game.phase != GamePhase.victory
-                                    ? () => ref
-                                        .read(gameControllerProvider.notifier)
-                                        .pause()
+                                    ? _pauseGame
                                     : null,
                               ),
                             ],
@@ -204,11 +227,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
                   ),
                   if (game.phase == GamePhase.paused)
                     PauseDialog(
-                      onResume: () =>
-                          ref.read(gameControllerProvider.notifier).resume(),
-                      onRestartStage: () => ref
-                          .read(gameControllerProvider.notifier)
-                          .restartStage(),
+                      onResume: _resumeGame,
+                      onRestartStage: () {
+                        ref.read(audioServiceProvider).stopMusic();
+                        ref
+                            .read(gameControllerProvider.notifier)
+                            .restartStage();
+                      },
                       onHome: _goHome,
                     ),
                   if (game.phase == GamePhase.wrongPopup ||

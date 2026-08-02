@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:memory_challenge/controllers/app_controllers.dart';
 import 'package:memory_challenge/core/constants/app_constants.dart';
+import 'package:memory_challenge/core/navigation/app_route_observer.dart';
 import 'package:memory_challenge/core/theme/app_theme.dart';
 import 'package:memory_challenge/screens/game_screen.dart';
 import 'package:memory_challenge/screens/how_to_play_screen.dart';
@@ -18,12 +19,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   late final AnimationController _logoController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _logoController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
@@ -34,9 +36,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
     _logoController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    ref.read(audioServiceProvider).startMusic();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final audio = ref.read(audioServiceProvider);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      audio.stopMusic();
+      return;
+    }
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        (ModalRoute.of(context)?.isCurrent ?? false)) {
+      audio.startMusic();
+    }
   }
 
   @override
@@ -143,15 +177,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           width: double.infinity,
                           glowing: true,
                           onPressed: () async {
-                            await ref
-                                .read(audioServiceProvider)
-                                .playButtonTap();
+                            final audio = ref.read(audioServiceProvider);
+                            await audio.playButtonTap();
+                            await audio.stopMusic();
                             if (!context.mounted) return;
-                            Navigator.of(context).push(
+                            await Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const GameScreen(),
                               ),
                             );
+                            if (!mounted) return;
+                            await audio.startMusic();
                           },
                         ),
                         const SizedBox(height: 14),
