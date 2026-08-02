@@ -23,6 +23,7 @@ class AudioService {
   bool vibrationEnabled = true;
 
   bool _initialized = false;
+  bool _musicPlaying = false;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -46,7 +47,7 @@ class AudioService {
     musicEnabled = music;
     vibrationEnabled = vibration;
     if (!musicEnabled) {
-      _music.stop();
+      stopMusic();
     }
   }
 
@@ -72,13 +73,20 @@ class AudioService {
 
   Future<void> startMusic() async {
     if (!musicEnabled) return;
+    if (_musicPlaying) return;
     try {
-      await _music.play(AssetSource('sounds/music_loop.wav'));
-    } catch (_) {}
+      await _music.play(AssetSource('sounds/music_loop.mp3'));
+      _musicPlaying = true;
+    } catch (_) {
+      _musicPlaying = false;
+    }
   }
 
   Future<void> stopMusic() async {
-    await _music.stop();
+    _musicPlaying = false;
+    try {
+      await _music.stop();
+    } catch (_) {}
   }
 
   Future<void> hapticLight() async {

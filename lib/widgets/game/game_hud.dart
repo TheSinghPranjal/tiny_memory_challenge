@@ -94,13 +94,16 @@ class PhaseOverlay extends StatelessWidget {
   }
 }
 
-/// Coach banner under the HUD — panda tip for the current phase.
+/// Coach banner under the HUD — always reserved so the board never jumps.
 class PhaseCoachBanner extends StatelessWidget {
   const PhaseCoachBanner({super.key, required this.phase});
 
+  /// Fixed slot height (including top margin) — keep board position stable.
+  static const double slotHeight = 56;
+
   final GamePhase phase;
 
-  (String title, String subtitle)? get _copy {
+  (String title, String subtitle) get _copy {
     switch (phase) {
       case GamePhase.blinking:
       case GamePhase.levelIntroObserve:
@@ -109,86 +112,107 @@ class PhaseCoachBanner extends StatelessWidget {
         return ('Your turn!', 'Tap the tiles in the same order.');
       case GamePhase.go:
         return ('Get ready…', 'The sequence is about to start.');
-      default:
-        return null;
+      case GamePhase.levelIntroReady:
+      case GamePhase.levelIntroSet:
+        return ('New level!', 'Get set for a new challenge.');
+      case GamePhase.stageSuccess:
+        return ('Nice!', 'Get ready for the next stage.');
+      case GamePhase.levelComplete:
+        return ('Level complete!', 'Great memory — keep going.');
+      case GamePhase.wrongPopup:
+      case GamePhase.timerExpiredPopup:
+        return ('Almost!', 'Check the sequence and try again.');
+      case GamePhase.gameOver:
+        return ('Game over', 'Tap continue when you are ready.');
+      case GamePhase.victory:
+        return ('You did it!', 'You beat every level.');
+      case GamePhase.paused:
+        return ('Paused', 'Take a breath, then resume.');
+      case GamePhase.idle:
+        return ('Tiny Think', 'Follow the sequence when it starts.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final copy = _copy;
-    if (copy == null) return const SizedBox.shrink();
 
-    return TweenAnimationBuilder<double>(
-      key: ValueKey(copy.$1),
-      tween: Tween(begin: 0.92, end: 1),
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
-      builder: (context, scale, child) {
-        return Transform.scale(
-          scale: scale,
-          child: Opacity(opacity: scale.clamp(0.0, 1.0), child: child),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
-        decoration: BoxDecoration(
-          color: _kGlassFill,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _kGlassBorder, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.asset(
-                'assets/images/panda_logo.webp',
-                width: 52,
-                height: 52,
-                fit: BoxFit.cover,
+    return SizedBox(
+      height: slotHeight,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _kGlassFill,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _kGlassBorder, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    copy.$1,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    copy.$2,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFFD4CCF0),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
+            ],
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/images/panda_logo.webp',
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
-            const Icon(
-              Icons.auto_awesome_rounded,
-              color: Color(0xFFFFD54F),
-              size: 18,
-            ),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  child: Column(
+                    key: ValueKey(copy.$1),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        copy.$1,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.1,
+                                ),
+                      ),
+                      Text(
+                        copy.$2,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: const Color(0xFFD4CCF0),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.2,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.auto_awesome_rounded,
+                color: Color(0xFFFFD54F),
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ),
     );
