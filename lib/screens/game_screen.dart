@@ -24,6 +24,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
   late final ConfettiController _confetti;
   bool _started = false;
   bool _adLoading = false;
+  /// True while a rewarded ad is on screen — skip background abandon/home.
+  bool _showingRewardedAd = false;
   GamePhase? _lastPhase;
 
   @override
@@ -54,6 +56,17 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final controller = ref.read(gameControllerProvider.notifier);
     final game = ref.read(gameControllerProvider);
     final audio = ref.read(audioServiceProvider);
+
+    // Fullscreen rewarded ads briefly background the app. Do not abandon the
+    // run or pop to Home — the player should return to the game screen.
+    if (_showingRewardedAd) {
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.hidden ||
+          state == AppLifecycleState.detached) {
+        audio.stopMusic();
+      }
+      return;
+    }
 
     if (state == AppLifecycleState.inactive) {
       if (game.isGameActive && !game.isPaused) {
@@ -100,15 +113,28 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   Future<void> _watchAdForExtraLife() async {
     if (_adLoading) return;
-    setState(() => _adLoading = true);
+    setState(() {
+      _adLoading = true;
+      _showingRewardedAd = true;
+    });
 
-    final earned = await ref.read(adServiceProvider).showRewardedAd();
+    var earned = false;
+    try {
+      earned = await ref.read(adServiceProvider).showRewardedAd();
+    } finally {
+      if (mounted) {
+        setState(() => _showingRewardedAd = false);
+      } else {
+        _showingRewardedAd = false;
+      }
+    }
+
     if (!mounted) return;
 
     if (earned) {
       // Close Game Over and show the "continue with rewarded life" popup.
       ref.read(gameControllerProvider.notifier).grantAdBonusLife();
-    } else if (mounted) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ad unavailable. Try again in a moment.'),
