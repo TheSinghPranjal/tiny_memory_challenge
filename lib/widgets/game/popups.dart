@@ -13,6 +13,9 @@ class WrongSequencePopup extends StatelessWidget {
     required this.onRestart,
     required this.onHome,
     this.isTimeout = false,
+    this.showWatchAd = false,
+    this.adLoading = false,
+    this.onWatchAd,
   });
 
   final int level;
@@ -22,6 +25,11 @@ class WrongSequencePopup extends StatelessWidget {
   final VoidCallback onRestart;
   final VoidCallback onHome;
   final bool isTimeout;
+
+  /// First game-over only: offer a rewarded ad for one bonus life.
+  final bool showWatchAd;
+  final bool adLoading;
+  final VoidCallback? onWatchAd;
 
   @override
   Widget build(BuildContext context) {
@@ -80,21 +88,36 @@ class WrongSequencePopup extends StatelessWidget {
                 depth3D: true,
               )
             else ...[
+              if (showWatchAd) ...[
+                PrimaryGameButton(
+                  label: adLoading
+                      ? 'Loading Ad…'
+                      : 'Watch Ad for 1 Extra Life',
+                  icon: adLoading
+                      ? Icons.hourglass_top_rounded
+                      : Icons.ondemand_video_rounded,
+                  color: AppColors.accent,
+                  onPressed: adLoading ? null : onWatchAd,
+                  width: double.infinity,
+                  depth3D: true,
+                ),
+                const SizedBox(height: 12),
+              ],
               PrimaryGameButton(
                 label: 'Restart Game',
                 icon: Icons.refresh_rounded,
-                onPressed: onRestart,
+                onPressed: adLoading ? null : onRestart,
                 width: double.infinity,
                 depth3D: true,
               ),
               const SizedBox(height: 10),
               TextButton(
-                onPressed: onHome,
+                onPressed: adLoading ? null : onHome,
                 child: Text(
                   'Home',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.primary,
-                  ),
+                        color: AppColors.primary,
+                      ),
                 ),
               ),
             ],
