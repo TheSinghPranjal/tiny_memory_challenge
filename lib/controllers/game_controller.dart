@@ -9,13 +9,22 @@ class GameController extends StateNotifier<GameState> {
   GameController(this._ref) : super(const GameState()) {
     _engine = GameEngine(audio: _ref.read(audioServiceProvider));
     _engine.onChange = (s) {
-      if (mounted) state = s;
+      if (!mounted) return;
+      final prev = state;
+      state = s;
+      // Timeout (and any non-tap) path into final game-over after bonus life.
+      if (s.phase == GamePhase.gameOver &&
+          prev.phase != GamePhase.gameOver &&
+          s.adBonusLifeUsed) {
+        _persistLoss(s);
+      }
     };
   }
 
   final Ref _ref;
   late final GameEngine _engine;
   bool _runCounted = false;
+  bool _lossPersisted = false;
   int _runMistakes = 0;
   int _runCorrect = 0;
   int _runResponseMs = 0;
@@ -28,6 +37,7 @@ class GameController extends StateNotifier<GameState> {
     final settings = _ref.read(settingsControllerProvider);
 
     _runCounted = false;
+    _lossPersisted = false;
     _runMistakes = 0;
     _runCorrect = 0;
     _runResponseMs = 0;
@@ -87,9 +97,6 @@ class GameController extends StateNotifier<GameState> {
     if (after.phase == GamePhase.victory) {
       _persistWin(after);
     }
-    if (after.phase == GamePhase.gameOver) {
-      _persistLoss(after);
-    }
   }
 
   void continueAfterFailure() {
@@ -100,9 +107,18 @@ class GameController extends StateNotifier<GameState> {
     _engine.continueAfterLevelComplete();
   }
 
+  /// Grant one bonus life after a rewarded ad and resume the current stage.
+  void continueWithAdBonusLife() {
+    _engine.continueWithAdBonusLife();
+  }
+
   void restartGame() {
+    if (state.phase == GamePhase.gameOver) {
+      _persistLoss(state);
+    }
     final settings = _ref.read(settingsControllerProvider);
     _runCounted = false;
+    _lossPersisted = false;
     _runMistakes = 0;
     _runCorrect = 0;
     _bumpGamesPlayed();
@@ -111,6 +127,9 @@ class GameController extends StateNotifier<GameState> {
 
   /// Called when leaving mid-run (home, back, background).
   Future<void> abandonAndSave() async {
+    if (state.phase == GamePhase.gameOver) {
+      await _persistLoss(state);
+    }
     await _persistHighestCompleted();
     _engine.abandonRun();
     if (mounted) state = const GameState();
@@ -191,6 +210,8 @@ class GameController extends StateNotifier<GameState> {
   }
 
   Future<void> _persistLoss(GameState s) async {
+    if (_lossPersisted) return;
+    _lossPersisted = true;
     final profile = _ref.read(activeProfileProvider);
     final stats = _ref.read(profilesControllerProvider)[profile] ??
         const ProfileStats();

@@ -196,6 +196,36 @@ class GameEngine {
     _beginOverlay(GamePhase.levelIntroReady, AppConstants.readyDuration);
   }
 
+  /// After a rewarded ad: grant one life and resume the current stage.
+  /// Can only be used once per run ([GameState.adBonusLifeUsed]).
+  void continueWithAdBonusLife() {
+    if (_disposed) return;
+    if (_state.phase != GamePhase.gameOver) return;
+    if (_state.adBonusLifeUsed) return;
+    _cancelPhaseTimer();
+    _timer.cancel();
+    _tapLocked = false;
+    // Leave game-over in the same emit as granting the life to avoid a
+    // one-frame "Continue" flash on the popup.
+    _emit(_state.copyWith(
+      lives: 1,
+      adBonusLifeUsed: true,
+      playerIndex: 0,
+      clearBlinkingTile: true,
+      tileStates: const {},
+      sequence: const [],
+      clearFailureReason: true,
+      lastFailedSequence: const [],
+      phase: GamePhase.levelIntroReady,
+      overlayRemainingMs: AppConstants.readyDuration.inMilliseconds,
+    ));
+    _beginOverlay(
+      GamePhase.levelIntroReady,
+      AppConstants.readyDuration,
+      resumeExisting: true,
+    );
+  }
+
   void continueAfterLevelComplete() {
     if (_disposed) return;
     final nextLevel = _state.level + 1;
