@@ -265,10 +265,11 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            const _StatsSummary(),
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      const _StatsSummary(),
                     ],
                   ),
                 ),
@@ -739,33 +740,202 @@ class _LeaderboardTile extends StatelessWidget {
 class _StatsSummary extends ConsumerWidget {
   const _StatsSummary();
 
+  static const Color _neonCyan = Color(0xFF7DD3FC);
+  static const Color _neonCyanGlow = Color(0x667DD3FC);
+  static const Color _fill = Color(0xCC14143C);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(activeProfileStatsProvider);
     final accuracy = (stats.averageAccuracy * 100).toStringAsFixed(0);
     final avgMs = stats.averageResponseMs.toStringAsFixed(0);
-    final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: const Color(0xFFD4CCF0),
-        );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Your Stats',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontSize: 16,
+
+    final rows = <({IconData icon, Color color, String label, String value})>[
+      (
+        icon: Icons.sports_esports_rounded,
+        color: const Color(0xFFB794F6),
+        label: 'Games played',
+        value: '${stats.gamesPlayed}',
+      ),
+      (
+        icon: Icons.emoji_events_rounded,
+        color: const Color(0xFF4ADE80),
+        label: 'Won / Lost',
+        value: '${stats.gamesWon} / ${stats.gamesLost}',
+      ),
+      (
+        icon: Icons.local_fire_department_rounded,
+        color: const Color(0xFFFF8A3D),
+        label: 'Longest streak',
+        value: '${stats.longestStreak}',
+      ),
+      (
+        icon: Icons.my_location_rounded,
+        color: const Color(0xFFFF6B6B),
+        label: 'Total mistakes',
+        value: '${stats.totalMistakes}',
+      ),
+      (
+        icon: Icons.star_rounded,
+        color: const Color(0xFFFFD54F),
+        label: 'Accuracy',
+        value: '$accuracy%',
+      ),
+      (
+        icon: Icons.schedule_rounded,
+        color: const Color(0xFF4FC3F7),
+        label: 'Avg response',
+        value: '${avgMs}ms',
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      decoration: BoxDecoration(
+        color: _fill,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _neonCyan, width: 1.6),
+        boxShadow: const [
+          BoxShadow(
+            color: _neonCyanGlow,
+            blurRadius: 16,
+            spreadRadius: 0.5,
+          ),
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B3FD4),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x66A78BFA),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.bar_chart_rounded,
+                  color: Color(0xFFFFD54F),
+                  size: 18,
+                ),
               ),
-        ),
-        const SizedBox(height: 8),
-        Text('Games played: ${stats.gamesPlayed}', style: style),
-        Text('Won / Lost: ${stats.gamesWon} / ${stats.gamesLost}',
-            style: style),
-        Text('Longest streak: ${stats.longestStreak}', style: style),
-        Text('Total mistakes: ${stats.totalMistakes}', style: style),
-        Text('Accuracy: $accuracy%', style: style),
-        Text('Avg response: ${avgMs}ms', style: style),
-      ],
+              const SizedBox(width: 10),
+              Text(
+                'YOUR STATS',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (var i = 0; i < rows.length; i++) ...[
+            _StatRow(
+              icon: rows[i].icon,
+              iconColor: rows[i].color,
+              label: rows[i].label,
+              value: rows[i].value,
+            ),
+            if (i < rows.length - 1) const _DashedDivider(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  const _StatRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFFDCE7FF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dashWidth = 4.0;
+        const dashSpace = 3.0;
+        final count =
+            (constraints.maxWidth / (dashWidth + dashSpace)).floor();
+        return Row(
+          children: List.generate(count, (_) {
+            return Container(
+              width: dashWidth,
+              height: 1.2,
+              margin: const EdgeInsets.only(right: dashSpace),
+              color: const Color(0x33FFFFFF),
+            );
+          }),
+        );
+      },
     );
   }
 }
