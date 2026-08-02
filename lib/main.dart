@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:memory_challenge/controllers/app_controllers.dart';
+import 'package:memory_challenge/core/navigation/app_route_observer.dart';
 import 'package:memory_challenge/core/theme/app_theme.dart';
 import 'package:memory_challenge/screens/home_screen.dart';
 import 'package:memory_challenge/services/ad_service.dart';
@@ -53,6 +54,7 @@ class TinyThinkApp extends StatelessWidget {
       title: 'Tiny Think - Memory Challenge',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      navigatorObservers: [appRouteObserver],
       home: const HomeScreen(),
     );
   }
