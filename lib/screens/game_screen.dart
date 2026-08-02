@@ -23,6 +23,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     with WidgetsBindingObserver {
   late final ConfettiController _confetti;
   bool _started = false;
+  bool _adLoading = false;
   GamePhase? _lastPhase;
 
   @override
@@ -35,6 +36,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
         _started = true;
         ref.read(audioServiceProvider).stopMusic();
         ref.read(gameControllerProvider.notifier).startGame();
+        // Warm rewarded inventory for a possible game-over continue.
+        ref.read(adServiceProvider).preloadRewardedAd();
       }
     });
   }
@@ -93,6 +96,29 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void _resumeGame() {
     ref.read(audioServiceProvider).stopMusic();
     ref.read(gameControllerProvider.notifier).resume();
+  }
+
+  Future<void> _watchAdForExtraLife() async {
+    if (_adLoading) return;
+    setState(() => _adLoading = true);
+
+    final earned = await ref.read(adServiceProvider).showRewardedAd();
+    if (!mounted) return;
+
+    if (earned) {
+      ref.read(gameControllerProvider.notifier).continueWithAdBonusLife();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ad unavailable. Try again in a moment.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      // Keep a fresh ad ready for another attempt.
+      ref.read(adServiceProvider).preloadRewardedAd();
+    }
+
+    if (mounted) setState(() => _adLoading = false);
   }
 
   void _handlePhaseSideEffects(GameState game) {
@@ -244,6 +270,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                       sequence: game.lastFailedSequence,
                       livesRemaining: game.lives,
                       isTimeout: game.failureReason == 'timeout',
+                      showWatchAd: game.canWatchAdForBonusLife,
+                      adLoading: _adLoading,
+                      onWatchAd: _watchAdForExtraLife,
                       onContinue: () => ref
                           .read(gameControllerProvider.notifier)
                           .continueAfterFailure(),

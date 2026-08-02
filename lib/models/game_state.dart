@@ -53,6 +53,7 @@ class GameState extends Equatable {
     this.blinkProgressIndex = 0,
     this.blinkRemainingMs = 0,
     this.overlayRemainingMs = 0,
+    this.adBonusLifeUsed = false,
   });
 
   final GamePhase phase;
@@ -75,6 +76,9 @@ class GameState extends Equatable {
   final List<int> lastFailedSequence;
   final String? failureReason;
 
+  /// True after the player already claimed a rewarded-ad extra life this run.
+  final bool adBonusLifeUsed;
+
   /// Phase frozen when pause was entered.
   final GamePhase? phaseBeforePause;
 
@@ -91,6 +95,10 @@ class GameState extends Equatable {
       phase != GamePhase.idle &&
       phase != GamePhase.gameOver &&
       phase != GamePhase.victory;
+
+  /// Offer a rewarded ad only on the first game-over of a run.
+  bool get canWatchAdForBonusLife =>
+      phase == GamePhase.gameOver && !adBonusLifeUsed && lives <= 0;
 
   GameState copyWith({
     GamePhase? phase,
@@ -120,6 +128,7 @@ class GameState extends Equatable {
     int? blinkProgressIndex,
     int? blinkRemainingMs,
     int? overlayRemainingMs,
+    bool? adBonusLifeUsed,
   }) {
     return GameState(
       phase: phase ?? this.phase,
@@ -153,6 +162,7 @@ class GameState extends Equatable {
       blinkProgressIndex: blinkProgressIndex ?? this.blinkProgressIndex,
       blinkRemainingMs: blinkRemainingMs ?? this.blinkRemainingMs,
       overlayRemainingMs: overlayRemainingMs ?? this.overlayRemainingMs,
+      adBonusLifeUsed: adBonusLifeUsed ?? this.adBonusLifeUsed,
     );
   }
 
@@ -181,5 +191,6 @@ class GameState extends Equatable {
         blinkProgressIndex,
         blinkRemainingMs,
         overlayRemainingMs,
+        adBonusLifeUsed,
       ];
 }
