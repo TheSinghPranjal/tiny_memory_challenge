@@ -265,6 +265,65 @@ class _RecapTile extends StatelessWidget {
   }
 }
 
+/// Shown after a rewarded ad completes — player must confirm to use the life.
+class AdBonusContinuePopup extends StatelessWidget {
+  const AdBonusContinuePopup({
+    super.key,
+    required this.onContinue,
+    required this.onHome,
+  });
+
+  final VoidCallback onContinue;
+  final VoidCallback onHome;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: SoftCard(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('❤️', style: TextStyle(fontSize: 60)),
+            const SizedBox(height: 8),
+            Text(
+              'Extra Life!',
+              style: Theme.of(context).textTheme.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Continue with your rewarded extra life?',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            PrimaryGameButton(
+              label: 'Continue with Extra Life',
+              icon: Icons.favorite_rounded,
+              color: AppColors.accent,
+              onPressed: onContinue,
+              width: double.infinity,
+              depth3D: true,
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: onHome,
+              child: Text(
+                'Home',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.primary,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class LevelCompletePopup extends StatelessWidget {
   const LevelCompletePopup({
     super.key,
