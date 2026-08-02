@@ -14,6 +14,12 @@ abstract final class AppConstants {
   static const String iosBannerAdUnitId =
       'ca-app-pub-3940256099942544/2934735716';
 
+  /// AdMob test rewarded unit IDs (replace with production IDs before release).
+  static const String androidRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const String iosRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/1712485313';
+
   static const int maxLives = 3;
   static const int maxLevel = 9;
   static const int minTimerSeconds = 20;
