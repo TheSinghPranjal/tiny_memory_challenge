@@ -124,6 +124,8 @@ class PhaseCoachBanner extends StatelessWidget {
         return ('Almost!', 'Check the sequence and try again.');
       case GamePhase.gameOver:
         return ('Game over', 'Tap continue when you are ready.');
+      case GamePhase.adBonusReady:
+        return ('Extra life!', 'Continue with your rewarded life.');
       case GamePhase.victory:
         return ('You did it!', 'You beat every level.');
       case GamePhase.paused:

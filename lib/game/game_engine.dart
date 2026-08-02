@@ -96,6 +96,7 @@ class GameEngine {
         _state.phase == GamePhase.levelComplete ||
         _state.phase == GamePhase.stageSuccess ||
         _state.phase == GamePhase.gameOver ||
+        _state.phase == GamePhase.adBonusReady ||
         _state.phase == GamePhase.victory) {
       return;
     }
@@ -196,20 +197,31 @@ class GameEngine {
     _beginOverlay(GamePhase.levelIntroReady, AppConstants.readyDuration);
   }
 
-  /// After a rewarded ad: grant one life and resume the current stage.
-  /// Can only be used once per run ([GameState.adBonusLifeUsed]).
-  void continueWithAdBonusLife() {
+  /// After a rewarded ad completes: grant the 4th (bonus) life and wait for
+  /// the player to confirm continue. Once per run ([GameState.adBonusLifeUsed]).
+  void grantAdBonusLife() {
     if (_disposed) return;
     if (_state.phase != GamePhase.gameOver) return;
     if (_state.adBonusLifeUsed) return;
     _cancelPhaseTimer();
     _timer.cancel();
-    _tapLocked = false;
-    // Leave game-over in the same emit as granting the life to avoid a
-    // one-frame "Continue" flash on the popup.
+    _tapLocked = true;
     _emit(_state.copyWith(
       lives: 1,
       adBonusLifeUsed: true,
+      phase: GamePhase.adBonusReady,
+    ));
+  }
+
+  /// Player confirmed the rewarded-life popup — resume the current stage.
+  void continueWithAdBonusLife() {
+    if (_disposed) return;
+    if (_state.phase != GamePhase.adBonusReady) return;
+    if (_state.lives <= 0) return;
+    _cancelPhaseTimer();
+    _timer.cancel();
+    _tapLocked = false;
+    _emit(_state.copyWith(
       playerIndex: 0,
       clearBlinkingTile: true,
       tileStates: const {},

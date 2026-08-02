@@ -12,9 +12,10 @@ class GameController extends StateNotifier<GameState> {
       if (!mounted) return;
       final prev = state;
       state = s;
-      // Timeout (and any non-tap) path into final game-over after bonus life.
+      // Final game-over after the rewarded life was already used.
       if (s.phase == GamePhase.gameOver &&
           prev.phase != GamePhase.gameOver &&
+          prev.phase != GamePhase.adBonusReady &&
           s.adBonusLifeUsed) {
         _persistLoss(s);
       }
@@ -107,13 +108,19 @@ class GameController extends StateNotifier<GameState> {
     _engine.continueAfterLevelComplete();
   }
 
-  /// Grant one bonus life after a rewarded ad and resume the current stage.
+  /// Called when the rewarded ad finishes — shows the confirm-continue popup.
+  void grantAdBonusLife() {
+    _engine.grantAdBonusLife();
+  }
+
+  /// Player confirmed continue after earning the rewarded life.
   void continueWithAdBonusLife() {
     _engine.continueWithAdBonusLife();
   }
 
   void restartGame() {
-    if (state.phase == GamePhase.gameOver) {
+    if (state.phase == GamePhase.gameOver ||
+        state.phase == GamePhase.adBonusReady) {
       _persistLoss(state);
     }
     final settings = _ref.read(settingsControllerProvider);
@@ -127,7 +134,8 @@ class GameController extends StateNotifier<GameState> {
 
   /// Called when leaving mid-run (home, back, background).
   Future<void> abandonAndSave() async {
-    if (state.phase == GamePhase.gameOver) {
+    if (state.phase == GamePhase.gameOver ||
+        state.phase == GamePhase.adBonusReady) {
       await _persistLoss(state);
     }
     await _persistHighestCompleted();

@@ -14,6 +14,8 @@ enum GamePhase {
   wrongPopup,
   timerExpiredPopup,
   gameOver,
+  /// Reward earned from ad — waiting for player to confirm continue.
+  adBonusReady,
   victory,
   paused,
 }
@@ -94,6 +96,7 @@ class GameState extends Equatable {
   bool get isGameActive =>
       phase != GamePhase.idle &&
       phase != GamePhase.gameOver &&
+      phase != GamePhase.adBonusReady &&
       phase != GamePhase.victory;
 
   /// Offer a rewarded ad only on the first game-over of a run.

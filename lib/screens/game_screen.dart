@@ -106,7 +106,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (!mounted) return;
 
     if (earned) {
-      ref.read(gameControllerProvider.notifier).continueWithAdBonusLife();
+      // Close Game Over and show the "continue with rewarded life" popup.
+      ref.read(gameControllerProvider.notifier).grantAdBonusLife();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -114,7 +115,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
           behavior: SnackBarBehavior.floating,
         ),
       );
-      // Keep a fresh ad ready for another attempt.
       ref.read(adServiceProvider).preloadRewardedAd();
     }
 
@@ -208,6 +208,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                             GamePhase.timerExpiredPopup &&
                                         game.phase != GamePhase.levelComplete &&
                                         game.phase != GamePhase.gameOver &&
+                                        game.phase != GamePhase.adBonusReady &&
                                         game.phase != GamePhase.victory
                                     ? _pauseGame
                                     : null,
@@ -279,6 +280,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
                       onRestart: () => ref
                           .read(gameControllerProvider.notifier)
                           .restartGame(),
+                      onHome: _goHome,
+                    ),
+                  if (game.phase == GamePhase.adBonusReady)
+                    AdBonusContinuePopup(
+                      onContinue: () => ref
+                          .read(gameControllerProvider.notifier)
+                          .continueWithAdBonusLife(),
                       onHome: _goHome,
                     ),
                   if (game.phase == GamePhase.levelComplete)
