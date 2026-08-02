@@ -5,7 +5,8 @@ import 'package:memory_challenge/controllers/game_controller.dart';
 import 'package:memory_challenge/core/extensions/extensions.dart';
 import 'package:memory_challenge/core/theme/app_theme.dart';
 import 'package:memory_challenge/models/game_state.dart';
-import 'package:memory_challenge/widgets/common/common_widgets.dart';
+import 'package:memory_challenge/widgets/common/common_widgets.dart'
+    show SoftCard, PrimaryGameButton;
 import 'package:memory_challenge/widgets/game/game_hud.dart';
 import 'package:memory_challenge/widgets/game/memory_board.dart';
 import 'package:memory_challenge/widgets/game/popups.dart';
@@ -95,49 +96,60 @@ class _GameScreenState extends ConsumerState<GameScreen>
         await _goHome();
       },
       child: Scaffold(
-        body: GradientBackground(
-          child: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
-                      child: SizedBox(
-                        height: StageTimerRing.size,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            LivesRow(lives: game.lives),
-                            const Spacer(),
-                            SoftCard(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/home_background.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x73000000),
+                    Color(0x33000000),
+                    Color(0x66000000),
+                  ],
+                  stops: [0.0, 0.4, 1.0],
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: SizedBox(
+                          height: StageTimerRing.size + 8,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              LivesRow(lives: game.lives),
+                              const Spacer(),
+                              LevelStageChip(
+                                level: game.level,
+                                stage: game.stage,
                               ),
-                              child: Text(
-                                'Lv ${game.level} · St ${game.stage}',
-                                style: Theme.of(context).textTheme.titleLarge,
+                              const Spacer(),
+                              // Reserve timer slot so the board never jumps.
+                              SizedBox(
+                                width: StageTimerRing.size,
+                                height: StageTimerRing.size,
+                                child: game.phase == GamePhase.input
+                                    ? StageTimerRing(
+                                        remainingMs: game.remainingMs,
+                                        totalMs: game.timerTotalMs,
+                                      )
+                                    : const SizedBox.shrink(),
                               ),
-                            ),
-                            const Spacer(),
-                            // Always reserve the same slot so the board never jumps.
-                            SizedBox(
-                              width: StageTimerRing.size,
-                              height: StageTimerRing.size,
-                              child: game.phase == GamePhase.input
-                                  ? StageTimerRing(
-                                      remainingMs: game.remainingMs,
-                                      totalMs: game.timerTotalMs,
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                            SizedBox(
-                              width: 48,
-                              height: StageTimerRing.size,
-                              child: IconButton(
-                                tooltip: 'Pause',
-                                padding: EdgeInsets.zero,
+                              const SizedBox(width: 8),
+                              PauseChipButton(
                                 onPressed: game.isGameActive &&
                                         !game.isPaused &&
                                         game.phase != GamePhase.wrongPopup &&
@@ -150,86 +162,84 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         .read(gameControllerProvider.notifier)
                                         .pause()
                                     : null,
-                                icon: const Icon(
-                                  Icons.pause_circle_filled_rounded,
-                                  color: AppColors.textOnDark,
-                                  size: 36,
-                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Center(
-                          child: MemoryBoard(
-                            level: game.level.clamp(1, 9),
-                            tileStates: game.tileStates,
-                            inputEnabled: game.isAcceptingInput,
-                            onTileTap: (i) => ref
-                                .read(gameControllerProvider.notifier)
-                                .onTileTapped(i),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                if (showOverlay) PhaseOverlay(phase: game.phase),
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: ConfettiWidget(
-                    confettiController: _confetti,
-                    blastDirectionality: BlastDirectionality.explosive,
-                    shouldLoop: false,
-                    colors: const [
-                      AppColors.primary,
-                      AppColors.secondary,
-                      AppColors.accent,
-                      AppColors.gold,
-                      AppColors.success,
+                      PhaseCoachBanner(phase: game.phase),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                          child: Center(
+                            child: MemoryBoard(
+                              level: game.level.clamp(1, 9),
+                              stage: game.stage,
+                              tileStates: game.tileStates,
+                              inputEnabled: game.isAcceptingInput,
+                              onTileTap: (i) => ref
+                                  .read(gameControllerProvider.notifier)
+                                  .onTileTapped(i),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                if (game.phase == GamePhase.paused)
-                  PauseDialog(
-                    onResume: () =>
-                        ref.read(gameControllerProvider.notifier).resume(),
-                    onRestartStage: () => ref
-                        .read(gameControllerProvider.notifier)
-                        .restartStage(),
-                    onHome: _goHome,
+                  if (showOverlay) PhaseOverlay(phase: game.phase),
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: ConfettiWidget(
+                      confettiController: _confetti,
+                      blastDirectionality: BlastDirectionality.explosive,
+                      shouldLoop: false,
+                      colors: const [
+                        AppColors.primary,
+                        AppColors.secondary,
+                        AppColors.accent,
+                        AppColors.gold,
+                        AppColors.success,
+                      ],
+                    ),
                   ),
-                if (game.phase == GamePhase.wrongPopup ||
-                    game.phase == GamePhase.timerExpiredPopup ||
-                    game.phase == GamePhase.gameOver)
-                  WrongSequencePopup(
-                    level: game.level,
-                    sequence: game.lastFailedSequence,
-                    livesRemaining: game.lives,
-                    isTimeout: game.failureReason == 'timeout',
-                    onContinue: () => ref
-                        .read(gameControllerProvider.notifier)
-                        .continueAfterFailure(),
-                    onRestart: () => ref
-                        .read(gameControllerProvider.notifier)
-                        .restartGame(),
-                    onHome: _goHome,
-                  ),
-                if (game.phase == GamePhase.levelComplete)
-                  LevelCompletePopup(
-                    level: game.level,
-                    onContinue: () => ref
-                        .read(gameControllerProvider.notifier)
-                        .continueAfterLevelComplete(),
-                  ),
-                if (game.phase == GamePhase.victory) _VictoryOverlay(game: game),
-              ],
+                  if (game.phase == GamePhase.paused)
+                    PauseDialog(
+                      onResume: () =>
+                          ref.read(gameControllerProvider.notifier).resume(),
+                      onRestartStage: () => ref
+                          .read(gameControllerProvider.notifier)
+                          .restartStage(),
+                      onHome: _goHome,
+                    ),
+                  if (game.phase == GamePhase.wrongPopup ||
+                      game.phase == GamePhase.timerExpiredPopup ||
+                      game.phase == GamePhase.gameOver)
+                    WrongSequencePopup(
+                      level: game.level,
+                      sequence: game.lastFailedSequence,
+                      livesRemaining: game.lives,
+                      isTimeout: game.failureReason == 'timeout',
+                      onContinue: () => ref
+                          .read(gameControllerProvider.notifier)
+                          .continueAfterFailure(),
+                      onRestart: () => ref
+                          .read(gameControllerProvider.notifier)
+                          .restartGame(),
+                      onHome: _goHome,
+                    ),
+                  if (game.phase == GamePhase.levelComplete)
+                    LevelCompletePopup(
+                      level: game.level,
+                      onContinue: () => ref
+                          .read(gameControllerProvider.notifier)
+                          .continueAfterLevelComplete(),
+                    ),
+                  if (game.phase == GamePhase.victory)
+                    _VictoryOverlay(game: game),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
