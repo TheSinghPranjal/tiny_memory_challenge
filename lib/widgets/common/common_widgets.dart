@@ -142,6 +142,7 @@ class _PrimaryGameButtonState extends State<PrimaryGameButton>
           ),
         ],
       ),
+
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
